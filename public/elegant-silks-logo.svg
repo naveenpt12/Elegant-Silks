@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 210" role="img" aria-labelledby="title desc">
+  <title id="title">Elegant Silks and Sarees</title>
+  <desc id="desc">Elegant Silks and Sarees logo in pink</desc>
+  <rect width="720" height="210" rx="8" fill="#fffaf2"/>
+  <g fill="none" stroke="#d41462" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke-width="9" d="M80 150c-12-48 16-91 53-104 24-8 43 3 50 22 8 23-10 45-35 48-25 3-47-13-47-35 0-21 18-39 39-39"/>
+    <path stroke-width="7" d="M89 143c28-15 51-30 64-56M91 151c-2-27-14-50-35-66M97 159c34 6 66-1 92-22"/>
+    <path stroke-width="6" d="M64 169c35-19 80-20 125 0"/>
+  </g>
+  <circle cx="139" cy="25" r="12" fill="#d41462"/>
+  <text x="205" y="100" fill="#d41462" font-family="Georgia,serif" font-size="76" font-weight="700" letter-spacing="-3">Elegant</text>
+  <path d="M211 116h424" stroke="#d41462" stroke-width="2"/>
+  <text x="305" y="151" fill="#d41462" font-family="Arial,sans-serif" font-size="19" font-weight="700" letter-spacing="6">SILKS AND SAREES</text>
+  <path d="M288 171h255" stroke="#e9a21a" stroke-width="4"/>
+</svg>

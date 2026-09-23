@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { FiSearch } from 'react-icons/fi';
+import { FiSearch, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { categories } from '../data/products';
 import { useProducts } from '../context/ProductContext';
 import ProductCard from './ProductCard';
@@ -19,7 +19,9 @@ export default function FeaturedProducts({ searchQuery = '' }) {
   const [activeCategory, setActiveCategory] = useState('All');
   const [sort, setSort] = useState('default');
   const [search, setSearch] = useState(searchQuery);
+  const [viewMode, setViewMode] = useState('scroll'); // 'scroll' | 'grid'
   const debouncedSearch = useDebounce(search, 300);
+  const scrollRef = useRef(null);
 
   const filtered = useMemo(() => {
     let list = [...allProducts];
@@ -101,18 +103,38 @@ export default function FeaturedProducts({ searchQuery = '' }) {
           ))}
         </div>
 
-        {/* Results count */}
-        <p className="text-sm text-gray-500 mb-4">
-          Showing <span className="font-semibold text-gray-800">{filtered.length}</span> products
-        </p>
+        {/* Results count & Toggle */}
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-sm text-gray-500">
+            Showing <span className="font-semibold text-gray-800">{filtered.length}</span> products
+          </p>
+          <div className="flex bg-gray-100 p-1 rounded-xl">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                viewMode === 'grid' ? 'bg-white shadow-sm text-purple-600' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Grid
+            </button>
+            <button
+              onClick={() => setViewMode('scroll')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                viewMode === 'scroll' ? 'bg-white shadow-sm text-purple-600' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Scroll
+            </button>
+          </div>
+        </div>
 
-        {/* Grid */}
+        {/* Content */}
         {filtered.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-4xl mb-3">🔍</p>
             <p className="text-gray-500 font-medium">No products found. Try a different search.</p>
           </div>
-        ) : (
+        ) : viewMode === 'grid' ? (
           <motion.div
             layout
             className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-4 sm:gap-5"
@@ -130,6 +152,46 @@ export default function FeaturedProducts({ searchQuery = '' }) {
               </motion.div>
             ))}
           </motion.div>
+        ) : (
+          <div className="relative -mx-4 sm:mx-0 group">
+            <button
+              onClick={() => {
+                if (scrollRef.current) scrollRef.current.scrollBy({ left: -300, behavior: 'smooth' });
+              }}
+              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 w-12 h-12 rounded-full bg-white border border-gray-100 items-center justify-center text-gray-700 shadow-xl opacity-0 group-hover:opacity-100 transition-all hover:bg-purple-50 hover:text-purple-600 hover:scale-110 hidden sm:flex"
+            >
+              <FiChevronLeft size={24} />
+            </button>
+
+            <motion.div
+              ref={scrollRef}
+              layout
+              className="flex overflow-x-auto gap-4 sm:gap-5 pb-6 pt-2 px-4 sm:px-2 scrollbar-hide snap-x snap-mandatory"
+            >
+              {filtered.map((product, i) => (
+                <motion.div
+                  key={product.id}
+                  layout
+                  initial={{ opacity: 0, x: 20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4, delay: i * 0.05 }}
+                  className="w-[260px] sm:w-[280px] flex-shrink-0 snap-start"
+                >
+                  <ProductCard product={product} />
+                </motion.div>
+              ))}
+            </motion.div>
+
+            <button
+              onClick={() => {
+                if (scrollRef.current) scrollRef.current.scrollBy({ left: 300, behavior: 'smooth' });
+              }}
+              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10 w-12 h-12 rounded-full bg-white border border-gray-100 items-center justify-center text-gray-700 shadow-xl opacity-0 group-hover:opacity-100 transition-all hover:bg-purple-50 hover:text-purple-600 hover:scale-110 hidden sm:flex"
+            >
+              <FiChevronRight size={24} />
+            </button>
+          </div>
         )}
       </div>
     </section>

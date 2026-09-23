@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiX, FiUpload, FiLink, FiImage } from 'react-icons/fi';
+import { FiX, FiUpload, FiLink, FiImage, FiLoader } from 'react-icons/fi';
 import { categories } from '../../data/products';
+import { supabase } from '../../utils/supabase';
+import toast from 'react-hot-toast';
 
 const BADGES = ['Bestseller', 'Limited', 'New', 'Trending', 'Sale', 'Classic', 'Premium'];
 
@@ -12,11 +14,31 @@ const empty = {
   trending: false, tags: '',
 };
 
-export default function ProductFormModal({ open, onClose, onSave, editProduct }) {
+const Field = ({ label, error, children }) => (
+  <div>
+    <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">{label}</label>
+    {children}
+    {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+  </div>
+);
+
+const Input = ({ field, type = 'text', placeholder, form, set, errors, ...rest }) => (
+  <input
+    type={type}
+    value={form[field]}
+    onChange={e => set(field, e.target.value)}
+    placeholder={placeholder}
+    className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all ${errors[field] ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}
+    {...rest}
+  />
+);
+
+export default function ProductFormModal({ open, onClose, onSave, editProduct, allCategories = [] }) {
   const [form, setForm] = useState(empty);
-  const [imgMode, setImgMode] = useState('url'); // 'url' | 'upload'
+  const [imgMode, setImgMode] = useState('url');
   const [preview, setPreview] = useState('');
   const [errors, setErrors] = useState({});
+  const [isUploading, setIsUploading] = useState(false);
   const fileRef = useRef();
 
   useEffect(() => {
@@ -31,11 +53,11 @@ export default function ProductFormModal({ open, onClose, onSave, editProduct })
       setPreview('');
     }
     setErrors({});
+    setIsUploading(false);
   }, [editProduct, open]);
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
-  // Auto-calculate discount when price/originalPrice change
   useEffect(() => {
     const p = parseFloat(form.price);
     const op = parseFloat(form.originalPrice);
@@ -49,8 +71,34 @@ export default function ProductFormModal({ open, onClose, onSave, editProduct })
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      setPreview(ev.target.result);
-      set('image', ev.target.result);
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 800;
+        const MAX_HEIGHT = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        setPreview(dataUrl);
+        set('image', dataUrl);
+      };
+      img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
   };
@@ -66,10 +114,54 @@ export default function ProductFormModal({ open, onClose, onSave, editProduct })
     return Object.keys(e).length === 0;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) return;
+    setIsUploading(true);
+    let imageUrl = form.image;
+    
+    // Upload base64 image to Supabase if it's a new upload
+    if (imageUrl.startsWith('data:')) {
+      try {
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        const fileExt = blob.type.split('/')[1] || 'jpeg';
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        
+        const { error } = await supabase.storage
+          .from('product-images')
+          .upload(fileName, blob);
+
+        if (error) throw error;
+
+        const { data: publicData } = supabase.storage
+          .from('product-images')
+          .getPublicUrl(fileName);
+        
+        imageUrl = publicData.publicUrl;
+
+        // If editing and replacing an old Supabase image, delete the old one to free space
+        if (editProduct && editProduct.image && editProduct.image.includes('supabase.co')) {
+          try {
+            const parts = editProduct.image.split('/');
+            const oldFileName = parts[parts.length - 1];
+            if (oldFileName) {
+              await supabase.storage.from('product-images').remove([oldFileName]);
+            }
+          } catch (delErr) {
+            console.error('Failed to delete old image:', delErr);
+          }
+        }
+      } catch (err) {
+        console.error('Upload error:', err);
+        toast.error('Failed to upload image to Supabase');
+        setIsUploading(false);
+        return;
+      }
+    }
+
     onSave({
       ...form,
+      image: imageUrl,
       price: +form.price,
       originalPrice: +form.originalPrice,
       discount: +form.discount,
@@ -78,27 +170,11 @@ export default function ProductFormModal({ open, onClose, onSave, editProduct })
       stock: +form.stock,
       tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
     });
+    setIsUploading(false);
     onClose();
   };
 
-  const Field = ({ label, error, children }) => (
-    <div>
-      <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">{label}</label>
-      {children}
-      {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
-    </div>
-  );
 
-  const Input = ({ field, type = 'text', placeholder, ...rest }) => (
-    <input
-      type={type}
-      value={form[field]}
-      onChange={e => set(field, e.target.value)}
-      placeholder={placeholder}
-      className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all ${errors[field] ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}
-      {...rest}
-    />
-  );
 
   return (
     <AnimatePresence>
@@ -131,16 +207,25 @@ export default function ProductFormModal({ open, onClose, onSave, editProduct })
                 {/* Product Name */}
                 <div className="sm:col-span-2">
                   <Field label="Product Name *" error={errors.name}>
-                    <Input field="name" placeholder="e.g. Royal Blue Handloom Cotton Saree" />
+                    <Input field="name" placeholder="e.g. Royal Blue Handloom Cotton Saree" form={form} set={set} errors={errors} />
                   </Field>
                 </div>
 
                 {/* Category */}
                 <Field label="Category *">
-                  <select value={form.category} onChange={e => set('category', e.target.value)}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white">
-                    {categories.map(c => <option key={c.id}>{c.name}</option>)}
-                  </select>
+                  <input 
+                    list="category-options"
+                    value={form.category} 
+                    onChange={e => set('category', e.target.value)}
+                    placeholder="Select or type new category..."
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
+                  />
+                  <datalist id="category-options">
+                    {allCategories.length > 0 
+                      ? allCategories.map(c => <option key={c} value={c} />)
+                      : categories.map(c => <option key={c.id} value={c.name} />)
+                    }
+                  </datalist>
                 </Field>
 
                 {/* Badge */}
@@ -153,25 +238,25 @@ export default function ProductFormModal({ open, onClose, onSave, editProduct })
 
                 {/* Selling Price */}
                 <Field label="Selling Price (₹) *" error={errors.price}>
-                  <Input field="price" type="number" placeholder="e.g. 1499" min="1" />
+                  <Input field="price" type="number" placeholder="e.g. 1499" min="1" form={form} set={set} errors={errors} />
                 </Field>
 
                 {/* Original Price */}
                 <Field label="Original / MRP (₹) *" error={errors.originalPrice}>
-                  <Input field="originalPrice" type="number" placeholder="e.g. 2499" min="1" />
+                  <Input field="originalPrice" type="number" placeholder="e.g. 2499" min="1" form={form} set={set} errors={errors} />
                 </Field>
 
                 {/* Discount (auto-calculated) */}
                 <Field label="Discount %">
                   <div className="relative">
-                    <Input field="discount" type="number" placeholder="Auto-calculated" min="0" max="90" />
+                    <Input field="discount" type="number" placeholder="Auto-calculated" min="0" max="90" form={form} set={set} errors={errors} />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-medium">%</span>
                   </div>
                 </Field>
 
                 {/* Stock */}
                 <Field label="Stock Quantity *" error={errors.stock}>
-                  <Input field="stock" type="number" placeholder="e.g. 25" min="0" />
+                  <Input field="stock" type="number" placeholder="e.g. 25" min="0" form={form} set={set} errors={errors} />
                 </Field>
 
                 {/* Rating */}
@@ -188,20 +273,20 @@ export default function ProductFormModal({ open, onClose, onSave, editProduct })
 
                 {/* Reviews */}
                 <Field label="Review Count">
-                  <Input field="reviews" type="number" placeholder="e.g. 128" min="0" />
+                  <Input field="reviews" type="number" placeholder="e.g. 128" min="0" form={form} set={set} errors={errors} />
                 </Field>
 
                 {/* Delivery */}
                 <div className="sm:col-span-2">
                   <Field label="Delivery Info">
-                    <Input field="delivery" placeholder="e.g. Free delivery by Tomorrow" />
+                    <Input field="delivery" placeholder="e.g. Free delivery by Tomorrow" form={form} set={set} errors={errors} />
                   </Field>
                 </div>
 
                 {/* Tags */}
                 <div className="sm:col-span-2">
                   <Field label="Tags (comma separated)">
-                    <Input field="tags" placeholder="e.g. handloom, blue, festive" />
+                    <Input field="tags" placeholder="e.g. handloom, blue, festive" form={form} set={set} errors={errors} />
                   </Field>
                 </div>
 
@@ -280,13 +365,14 @@ export default function ProductFormModal({ open, onClose, onSave, editProduct })
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-gray-100 flex gap-3 justify-end bg-gray-50">
-              <button onClick={onClose}
-                className="px-5 py-2.5 border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-100 transition-colors">
+              <button onClick={onClose} disabled={isUploading}
+                className="px-5 py-2.5 border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-100 transition-colors disabled:opacity-50">
                 Cancel
               </button>
-              <motion.button whileTap={{ scale: 0.97 }} onClick={handleSave}
-                className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-sm font-bold hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md shadow-purple-200">
-                {editProduct ? 'Save Changes' : 'Add Product'}
+              <motion.button whileTap={{ scale: 0.97 }} onClick={handleSave} disabled={isUploading}
+                className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-sm font-bold hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md shadow-purple-200 disabled:opacity-70 disabled:cursor-not-allowed">
+                {isUploading ? <FiLoader className="animate-spin" size={16} /> : null}
+                {isUploading ? 'Uploading...' : editProduct ? 'Save Changes' : 'Add Product'}
               </motion.button>
             </div>
           </motion.div>

@@ -44,22 +44,31 @@ export default function ProductCard({ product }) {
   return (
     <>
       <motion.div
-        whileHover={{ y: -4 }}
-        transition={{ duration: 0.2 }}
-        className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl border border-gray-100 hover:border-purple-100 transition-all duration-300 group cursor-pointer"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        whileHover={{ y: -8, scale: 1.02 }}
+        transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+        className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl border border-gray-100 hover:border-purple-300 transition-all duration-500 group cursor-pointer relative"
         onClick={() => setQuickView(true)}
       >
+        {/* Glow effect on hover */}
+        <div className="absolute inset-0 bg-gradient-to-tr from-purple-600/0 via-purple-600/0 to-indigo-600/0 group-hover:from-purple-600/5 group-hover:via-transparent group-hover:to-indigo-600/5 transition-colors duration-500 z-10 pointer-events-none" />
+
         {/* Image */}
         <div className="relative overflow-hidden bg-gray-50 aspect-[4/5]">
           {!imgLoaded && (
-            <div className="absolute inset-0 bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 animate-pulse" />
+            <div className="absolute inset-0 bg-gradient-to-r from-gray-100 via-white to-gray-100 bg-[length:200%_100%] animate-[shimmer_1.5s_infinite] overflow-hidden">
+               <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent" />
+            </div>
           )}
           <img
             src={product.image}
             alt={product.name}
             loading="lazy"
             onLoad={() => setImgLoaded(true)}
-            className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
+            onError={(e) => { e.target.src = 'https://via.placeholder.com/400x500?text=No+Image'; setImgLoaded(true); }}
+            className={`w-full h-full object-cover transition-all duration-700 ease-out group-hover:scale-110 group-hover:rotate-1 ${imgLoaded ? 'opacity-100 blur-0' : 'opacity-0 blur-sm'}`}
           />
 
           {/* Badge */}

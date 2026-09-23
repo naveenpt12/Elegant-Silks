@@ -73,20 +73,55 @@ function OrdersPanel({ orders, onStatusChange }) {
       ) : (
         <div className="divide-y divide-gray-100">
           {orders.map(order => (
-            <div key={order.id} className="px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
-              <div>
-                <p className="font-semibold text-gray-800">{order.id}</p>
-                <p className="text-xs text-gray-500">{order.items.length} item(s) · ₹{order.total.toLocaleString()}</p>
+            <div key={order.id} className="px-5 py-5 flex flex-col sm:flex-row gap-4 justify-between hover:bg-purple-50/30 transition-colors">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <p className="font-bold text-purple-900">{order.id}</p>
+                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold">
+                    ₹{order.total.toLocaleString()}
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    {new Date(order.created_at || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </span>
+                </div>
+                
+                {/* Customer Details */}
+                {order.customer_name && (
+                  <div className="text-sm text-gray-600 mt-3 bg-white border border-purple-100 rounded-xl p-4 shadow-sm max-w-md">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="font-bold text-gray-900">{order.customer_name}</p>
+                      <p className="font-mono text-xs font-semibold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-lg">{order.customer_phone}</p>
+                    </div>
+                    <p className="text-gray-500 text-xs leading-relaxed mt-2">{order.customer_address}</p>
+                  </div>
+                )}
+                
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {order.items.map((item, idx) => (
+                    <span key={idx} className="text-[10px] bg-gray-100 text-gray-600 px-2 py-1 rounded-md border border-gray-200">
+                      {item.quantity}x {item.name}
+                    </span>
+                  ))}
+                </div>
               </div>
-              <select
-                value={order.status}
-                onChange={event => onStatusChange(order.id, event.target.value)}
-                className="px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white"
-              >
-                {['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'].map(status => (
-                  <option key={status}>{status}</option>
-                ))}
-              </select>
+              
+              <div className="flex sm:flex-col items-end justify-between sm:justify-start gap-3 border-t sm:border-t-0 border-gray-100 pt-3 sm:pt-0">
+                <select
+                  value={order.status}
+                  onChange={event => onStatusChange(order.id, event.target.value)}
+                  className={`px-4 py-2 border rounded-xl text-sm font-bold outline-none cursor-pointer transition-all shadow-sm ${
+                    order.status === 'Pending' ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' :
+                    order.status === 'Processing' ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' :
+                    order.status === 'Shipped' ? 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100' :
+                    order.status === 'Delivered' ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' :
+                    'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                  }`}
+                >
+                  {['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'].map(status => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           ))}
         </div>
@@ -451,6 +486,7 @@ export default function AdminDashboard() {
         onClose={() => { setFormOpen(false); setEditProduct(null); }}
         onSave={handleSave}
         editProduct={editProduct}
+        allCategories={allCategories.filter(c => c !== 'All')}
       />
       <DeleteConfirm product={deleteTarget} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} />
     </div>

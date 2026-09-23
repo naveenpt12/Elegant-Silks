@@ -1,69 +1,123 @@
-import { createContext, useContext, useReducer, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import { products as staticProducts } from '../data/products';
+import { supabase } from '../utils/supabase';
+import toast from 'react-hot-toast';
 
 const ProductContext = createContext();
 
-const loadState = () => {
-  try {
-    return {
-      adminProducts: JSON.parse(localStorage.getItem('trt-admin-products') || '[]'),
-      staticOverrides: JSON.parse(localStorage.getItem('trt-static-overrides') || '{}'),
-      deletedIds: JSON.parse(localStorage.getItem('trt-deleted-ids') || '[]'),
-    };
-  } catch {
-    return { adminProducts: [], staticOverrides: {}, deletedIds: [] };
-  }
-};
-
-const reducer = (state, action) => {
-  switch (action.type) {
-    case 'ADD':
-      return { ...state, adminProducts: [...state.adminProducts, action.payload] };
-    case 'UPDATE': {
-      const isStatic = staticProducts.some(p => p.id === action.payload.id);
-      if (isStatic) {
-        return { ...state, staticOverrides: { ...state.staticOverrides, [action.payload.id]: action.payload } };
-      }
-      return { ...state, adminProducts: state.adminProducts.map(p => p.id === action.payload.id ? action.payload : p) };
-    }
-    case 'DELETE':
-      return {
-        ...state,
-        adminProducts: state.adminProducts.filter(p => p.id !== action.payload),
-        deletedIds: [...state.deletedIds, action.payload],
-      };
-    default:
-      return state;
-  }
-};
-
 export const ProductProvider = ({ children }) => {
-  const [state, dispatch] = useReducer(reducer, undefined, loadState);
+  const [adminProducts, setAdminProducts] = useState([]);
+  const [staticOverrides, setStaticOverrides] = useState({});
+  const [deletedIds, setDeletedIds] = useState([]);
+
+  // Load static overrides from local storage
+  useEffect(() => {
+    try {
+      setStaticOverrides(JSON.parse(localStorage.getItem('trt-static-overrides') || '{}'));
+      setDeletedIds(JSON.parse(localStorage.getItem('trt-deleted-ids') || '[]'));
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  // Fetch admin products from Supabase
+  const fetchProducts = async () => {
+    const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+    if (error) {
+      console.error('Error fetching products:', error);
+      toast.error('Failed to load products from database');
+    } else {
+      setAdminProducts(data || []);
+    }
+  };
 
   useEffect(() => {
-    localStorage.setItem('trt-admin-products', JSON.stringify(state.adminProducts));
-    localStorage.setItem('trt-static-overrides', JSON.stringify(state.staticOverrides));
-    localStorage.setItem('trt-deleted-ids', JSON.stringify(state.deletedIds));
-  }, [state]);
+    fetchProducts();
+  }, []);
+
+  // Save static overrides to local storage
+  useEffect(() => {
+    localStorage.setItem('trt-static-overrides', JSON.stringify(staticOverrides));
+    localStorage.setItem('trt-deleted-ids', JSON.stringify(deletedIds));
+  }, [staticOverrides, deletedIds]);
 
   const allProducts = [
     ...staticProducts
-      .filter(p => !state.deletedIds.includes(p.id))
-      .map(p => state.staticOverrides[p.id] || p),
-    ...state.adminProducts.filter(p => !state.deletedIds.includes(p.id)),
+      .filter(p => !deletedIds.includes(p.id))
+      .map(p => staticOverrides[p.id] || p),
+    ...adminProducts,
   ].map(product => ({
     ...product,
-    tags: Array.isArray(product.tags) ? product.tags : [],
+    tags: Array.isArray(product.tags) ? product.tags : typeof product.tags === 'string' ? product.tags.split(',') : [],
     images: Array.isArray(product.images) && product.images.length > 0
       ? product.images
       : product.image ? [product.image] : [],
   }));
 
-  const addProduct = (data) =>
-    dispatch({ type: 'ADD', payload: { ...data, id: Date.now(), images: data.image ? [data.image] : [] } });
+  const addProduct = async (data) => {
+    const { error } = await supabase.from('products').insert([data]);
+    if (error) {
+      console.error(error);
+      toast.error('Failed to add product');
+    } else {
+      fetchProducts();
+      toast.success('Product added successfully!');
+    }
+  };
 
-  const updateProduct = (data) => dispatch({ type: 'UPDATE', payload: data });
-  const deleteProduct = (id) => dispatch({ type: 'DELETE', payload: id });
+  const updateProduct = async (data) => {
+    const isStatic = staticProducts.some(p => p.id === data.id);
+    if (isStatic) {
+      setStaticOverrides(prev => ({ ...prev, [data.id]: data }));
+      toast.success('Product updated!');
+      return;
+    }
+    
+    // Update in Supabase
+    const { error } = await supabase.from('products').update(data).eq('id', data.id);
+    if (error) {
+      console.error(error);
+      toast.error('Failed to update product');
+    } else {
+      fetchProducts();
+      toast.success('Product updated successfully!');
+    }
+  };
+
+  const deleteProduct = async (id) => {
+    const isStatic = staticProducts.some(p => p.id === id);
+    if (isStatic) {
+      setDeletedIds(prev => [...prev, id]);
+      toast.success('Product deleted!');
+      return;
+    }
+    
+    // Find the product first to get its image URL
+    const productToDelete = adminProducts.find(p => p.id === id);
+
+    // Delete from Supabase Database
+    const { error } = await supabase.from('products').delete().eq('id', id);
+    if (error) {
+      console.error(error);
+      toast.error('Failed to delete product');
+    } else {
+      // If DB delete is successful, also delete the image from storage to free space
+      if (productToDelete && productToDelete.image && productToDelete.image.includes('supabase.co')) {
+        try {
+          const parts = productToDelete.image.split('/');
+          const oldFileName = parts[parts.length - 1];
+          if (oldFileName) {
+            await supabase.storage.from('product-images').remove([oldFileName]);
+          }
+        } catch (delErr) {
+          console.error('Failed to delete associated image:', delErr);
+        }
+      }
+
+      fetchProducts();
+      toast.success('Product deleted successfully!');
+    }
+  };
 
   return (
     <ProductContext.Provider value={{ allProducts, addProduct, updateProduct, deleteProduct }}>

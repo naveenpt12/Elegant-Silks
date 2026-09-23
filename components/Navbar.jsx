@@ -142,9 +142,9 @@ export default function Navbar() {
                 )}
               </button>
 
-              <button className="hidden sm:flex p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-all">
+              <Link to="/admin" className="hidden sm:flex p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-all">
                 <FiUser size={18} />
-              </button>
+              </Link>
 
               {/* Mobile menu toggle */}
               <button

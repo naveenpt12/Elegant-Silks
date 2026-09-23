@@ -3,7 +3,7 @@ import { createContext, useContext, useState } from 'react';
 const AuthContext = createContext();
 
 const ADMIN_CREDENTIALS = [
-  { username: 'admin_TRT', password: '@dmin369', role: 'admin', name: 'TRT Admin' },
+  { username: 'admin_TRT', password: '@dmin369', role: 'admin', name: 'Admin' },
 ];
 
 export const AuthProvider = ({ children }) => {

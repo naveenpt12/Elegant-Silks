@@ -47,7 +47,7 @@ export default function ProductCard({ product }) {
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
-        whileHover={{ y: -8, scale: 1.02 }}
+        whileHover={{ y: -10, scale: 1.05 }}
         transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
         className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl border border-gray-100 hover:border-purple-300 transition-all duration-500 group cursor-pointer relative"
         onClick={() => setQuickView(true)}

@@ -59,7 +59,7 @@ export default function TrendingSection() {
         {viewMode === 'grid' ? (
           <motion.div
             layout
-            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-4 sm:gap-5"
+            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-5 gap-4 sm:gap-5"
           >
             {trending.map((product, i) => (
               <motion.div
@@ -95,7 +95,7 @@ export default function TrendingSection() {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.3, delay: i * 0.06 }}
-                  className="w-[260px] sm:w-[280px] flex-shrink-0 snap-start"
+                  className="w-[220px] sm:w-[240px] flex-shrink-0 snap-start"
                 >
                   <ProductCard product={product} />
                 </motion.div>

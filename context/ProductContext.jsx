@@ -41,12 +41,7 @@ export const ProductProvider = ({ children }) => {
     localStorage.setItem('trt-deleted-ids', JSON.stringify(deletedIds));
   }, [staticOverrides, deletedIds]);
 
-  const allProducts = [
-    ...staticProducts
-      .filter(p => !deletedIds.includes(p.id))
-      .map(p => staticOverrides[p.id] || p),
-    ...adminProducts,
-  ].map(product => ({
+  const allProducts = adminProducts.map(product => ({
     ...product,
     tags: Array.isArray(product.tags) ? product.tags : typeof product.tags === 'string' ? product.tags.split(',') : [],
     images: Array.isArray(product.images) && product.images.length > 0

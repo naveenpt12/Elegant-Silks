@@ -1,7 +1,6 @@
 import { useState, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { FiSearch, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
-import { categories } from '../data/products';
 import { useProducts } from '../context/ProductContext';
 import ProductCard from './ProductCard';
 import { useDebounce } from '../hooks/useScrolled';
@@ -43,7 +42,7 @@ export default function FeaturedProducts({ searchQuery = '' }) {
     }
   }, [activeCategory, allProducts, debouncedSearch, sort]);
 
-  const allCategories = ['All', ...categories.map(c => c.name)];
+  const allCategories = ['All', ...new Set(allProducts.map(p => p.category).filter(Boolean))];
 
   return (
     <section id="featured" className="py-16 bg-white">
@@ -137,7 +136,7 @@ export default function FeaturedProducts({ searchQuery = '' }) {
         ) : viewMode === 'grid' ? (
           <motion.div
             layout
-            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-4 sm:gap-5"
+            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-5 gap-4 sm:gap-5"
           >
             {filtered.map((product, i) => (
               <motion.div
@@ -176,7 +175,7 @@ export default function FeaturedProducts({ searchQuery = '' }) {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.4, delay: i * 0.05 }}
-                  className="w-[260px] sm:w-[280px] flex-shrink-0 snap-start"
+                  className="w-[220px] sm:w-[240px] flex-shrink-0 snap-start"
                 >
                   <ProductCard product={product} />
                 </motion.div>

@@ -43,6 +43,7 @@ export const ProductProvider = ({ children }) => {
 
   const allProducts = adminProducts.map(product => ({
     ...product,
+    originalPrice: product.original_price || product.originalPrice,
     tags: Array.isArray(product.tags) ? product.tags : typeof product.tags === 'string' ? product.tags.split(',') : [],
     images: Array.isArray(product.images) && product.images.length > 0
       ? product.images
@@ -50,10 +51,13 @@ export const ProductProvider = ({ children }) => {
   }));
 
   const addProduct = async (data) => {
-    const { error } = await supabase.from('products').insert([data]);
+    const dbData = { ...data, original_price: data.originalPrice };
+    delete dbData.originalPrice;
+    
+    const { error } = await supabase.from('products').insert([dbData]);
     if (error) {
       console.error(error);
-      toast.error('Failed to add product');
+      toast.error(error.message || 'Failed to add product');
     } else {
       fetchProducts();
       toast.success('Product added successfully!');
@@ -68,11 +72,14 @@ export const ProductProvider = ({ children }) => {
       return;
     }
     
+    const dbData = { ...data, original_price: data.originalPrice };
+    delete dbData.originalPrice;
+
     // Update in Supabase
-    const { error } = await supabase.from('products').update(data).eq('id', data.id);
+    const { error } = await supabase.from('products').update(dbData).eq('id', data.id);
     if (error) {
       console.error(error);
-      toast.error('Failed to update product');
+      toast.error(error.message || 'Failed to update product');
     } else {
       fetchProducts();
       toast.success('Product updated successfully!');
